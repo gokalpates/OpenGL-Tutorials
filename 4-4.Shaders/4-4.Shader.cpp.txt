@@ -1,0 +1,112 @@
+#include "Shader.h"
+
+Shader::Shader(const char* vertexShaderPath, const char* fragmentShaderPath, const char* geometryShaderPath)
+{
+	std::string vertexSource, fragmentSource, geometrySource;
+	std::ifstream fileStream;
+	std::stringstream vStream, fStream, gStream;
+
+	fileStream.open(vertexShaderPath);
+	vStream << fileStream.rdbuf();
+	vertexSource = vStream.str();
+	fileStream.close();
+
+	fileStream.open(fragmentShaderPath);
+	fStream << fileStream.rdbuf();
+	fragmentSource = fStream.str();
+	fileStream.close();
+
+	if (geometryShaderPath != nullptr)
+	{
+		fileStream.open(geometryShaderPath);
+		gStream << fileStream.rdbuf();
+		geometrySource = gStream.str();
+		fileStream.close();
+	}
+
+	const char* vertexShaderCode = vertexSource.c_str();
+	const char* fragmentShaderCode = fragmentSource.c_str();
+	const char* geometryShaerCode = geometrySource.c_str();
+
+	int success = 0;
+	char compilationLog[1024];
+
+	unsigned int vertexShaderId = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShaderId, 1, &vertexShaderCode, nullptr);
+	glCompileShader(vertexShaderId);
+	glGetShaderiv(vertexShaderId, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(vertexShaderId, 1024, nullptr, compilationLog);
+		std::cout << "ERROR: Failed to compile vertex shader: " << compilationLog << "\n";
+		glfwTerminate();
+		std::exit(1);
+	}
+
+	unsigned int fragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShaderId, 1, &fragmentShaderCode, nullptr);
+	glCompileShader(fragmentShaderId);
+	glGetShaderiv(fragmentShaderId, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(fragmentShaderId, 1024, nullptr, compilationLog);
+		std::cout << "ERROR: Failed to compile fragment shader: " << compilationLog << "\n";
+		glfwTerminate();
+		std::exit(1);
+	}
+
+	unsigned int geometryShaderId;
+	if (geometryShaderPath != nullptr)
+	{
+		geometryShaderId = glCreateShader(GL_GEOMETRY_SHADER);
+		glCompileShader(geometryShaderId);
+		glGetShaderiv(geometryShaderId, GL_COMPILE_STATUS, &success);
+		if (!success)
+		{
+			glGetShaderInfoLog(geometryShaderId, 1024, nullptr, compilationLog);
+			std::cout << "ERROR: Failed to compile geometry shader: " << compilationLog << "\n";
+			glfwTerminate();
+			std::exit(1);
+		}
+	}
+
+	id = glCreateProgram();
+	glAttachShader(id, vertexShaderId);
+	glAttachShader(id, fragmentShaderId);
+	if (geometryShaderPath != nullptr)
+		glAttachShader(id, geometryShaderId);
+	glLinkProgram(id);
+	glGetProgramiv(id, GL_LINK_STATUS, &success);
+	if (!success)
+	{
+		glGetProgramInfoLog(id, 1024, nullptr, compilationLog);
+		std::cout << "ERROR: Failed to link program with id number " << id << ": " << compilationLog << "\n";
+		glfwTerminate();
+		std::exit(1);
+	}
+
+	glDeleteShader(vertexShaderId);
+	glDeleteShader(fragmentShaderId);
+	if (geometryShaderPath != nullptr)
+		glDeleteShader(geometryShaderId);
+}
+
+void Shader::use()
+{
+	glUseProgram(id);
+}
+
+void Shader::setBool(const char* name, bool value) const
+{
+	glUniform1i(glGetUniformLocation(id, name), (int)value);
+}
+
+void Shader::setFloat(const char* name, float value) const
+{
+	glUniform1f(glGetUniformLocation(id, name), value);
+}
+
+void Shader::setInt(const char* name, int value) const
+{
+	glUniform1i(glGetUniformLocation(id, name), value);
+}

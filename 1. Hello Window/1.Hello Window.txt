@@ -1,0 +1,67 @@
+#include <glad/glad.h> // Make sure include GLAD before GLFW.
+#include <GLFW/glfw3.h>
+#include <iostream>
+
+void windowSizeCallback(GLFWwindow* window, int width, int height);
+void handleInput(GLFWwindow* window);
+
+int main()
+{
+	// Initialise GLFW.
+	glfwInit();
+
+	// Telling GLFW that we are going to use OpenGL 3.3.
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+	// We will use OpenGL Core Profile.
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	// Creating a window and storing it in variable.
+	GLFWwindow* window = nullptr;
+	window = glfwCreateWindow(800, 600, "Learning OpenGL", nullptr, nullptr); // Creating a window with 800px width and 600px height.
+	if (window == nullptr) // Check window variable and if window could not created, show error message.
+	{
+		std::cerr << "ERROR: Program could not create a window!\n";
+		glfwTerminate();
+		return 1;
+	}
+	glfwMakeContextCurrent(window);
+	glfwSetWindowSizeCallback(window, windowSizeCallback); // Whenever the window size is changed function pointer is called.
+
+	// Checking if GLAD loaded OpenGL functions properly before using them.
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		std::cerr << "ERROR: Failed to initialise GLAD, Cannot use OpenGL functions.\n";
+		glfwTerminate();
+		return 1;
+	}
+
+	glClearColor(255.f, 0.f, 0.f, 1.f); // Seting clearing color.
+
+	// Game Loop.
+	while (!glfwWindowShouldClose(window))
+	{
+		glfwPollEvents();
+		handleInput(window); // Process the inputs.
+
+		glfwSwapBuffers(window); // Swap back and front buffer.
+		glClear(GL_COLOR_BUFFER_BIT); // Clear the screen with specified color.
+	}
+
+	glfwTerminate(); // Terminate GLFW before program ends.
+	return 0;
+}
+
+// This function is going to be called when will window will resized.
+void windowSizeCallback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height); // Set Viewport with its new values.
+}
+
+// Process inputs.
+void handleInput(GLFWwindow* window)
+{
+	if (glfwGetKey(window,GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+}

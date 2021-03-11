@@ -1,0 +1,161 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <iostream>
+
+// Demonstration of element buffer objects (EBO) with drawing a rectangle.
+
+void windowSizeCallback(GLFWwindow* window, int width, int height);
+void handleInput(GLFWwindow* window);
+
+float vertices[] = {
+	-0.5f, 0.5f, 0.f, // Top left
+	-0.5f,-0.5f, 0.f, // Bottom left
+	 0.5f,-0.5f, 0.f, // Bottom right
+	 0.5f, 0.5f, 0.f  // Top right
+};
+
+// OpenGL will follow this order while draw.
+unsigned int indexOrder[] = {
+	 0, 1, 2, // First triangle
+	 0, 2, 3 // Second triangle
+};
+
+const char* vertexShaderSource = "#version 330 core\n"
+"layout(location = 0) in vec3 inputVertex;\n"
+"out vec4 vertexColor;\n" // Input for fragment shader. Name and type must match.
+"void main()\n"
+"{\n"
+"gl_Position = vec4(inputVertex.x, inputVertex.y, inputVertex.z, 1.0);\n"
+"vertexColor = vec4(1.f,1.f,1.f,1.f);\n" // Color defined in vertex shader and we will send it to fragment shader as a input.
+"}\0";
+
+const char* fragmentShaderSource = "#version 330 core\n"
+"in vec4 vertexColor;\n" // Input comes from vertex shader. Name and type must match.
+"out vec4 fragColor;\n"
+"void main()\n"
+"{\n"
+"fragColor = vertexColor;"
+"}\0";
+
+int main()
+{
+	glfwInit();
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	GLFWwindow* window = glfwCreateWindow(800, 600, "Window", nullptr, nullptr);
+	if (window == nullptr)
+	{
+		std::cout << "ERROR: Could not create a window.\n";
+		glfwTerminate();
+		return 1;
+	}
+	glfwMakeContextCurrent(window);
+	glfwSetWindowSizeCallback(window, windowSizeCallback);
+
+	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+
+	unsigned int vertexShaderId;
+	vertexShaderId = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShaderId, 1, &vertexShaderSource, nullptr);
+	glCompileShader(vertexShaderId);
+	int success;
+	char log[512];
+	glGetShaderiv(vertexShaderId, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(vertexShaderId, 512, nullptr, log);
+		std::cout << "ERROR: Vertex shader could not compile :" << log << "\n";
+		glfwTerminate();
+		return 1;
+	}
+
+	unsigned int fragmentShaderId;
+	fragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShaderId, 1, &fragmentShaderSource, nullptr);
+	glCompileShader(fragmentShaderId);
+	glGetShaderiv(fragmentShaderId, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(fragmentShaderId, 512, nullptr, log);
+		std::cout << "ERROR: Fragment shader could not compile :" << log << "\n";
+		glfwTerminate();
+		return 1;
+	}
+
+	unsigned int shaderProgramId;
+	shaderProgramId = glCreateProgram();
+	glAttachShader(shaderProgramId, vertexShaderId);
+	glAttachShader(shaderProgramId, fragmentShaderId);
+	glLinkProgram(shaderProgramId);
+	glGetProgramiv(shaderProgramId, GL_LINK_STATUS, &success);
+	if (!success)
+	{
+		glGetProgramInfoLog(shaderProgramId, 512, nullptr, log);
+		std::cout << "ERROR: Could not link vertex and fragment shader :" << log << "\n";
+		glfwTerminate();
+		return 1;
+	}
+
+	glDeleteShader(vertexShaderId);
+	glDeleteShader(fragmentShaderId);
+
+	glUseProgram(shaderProgramId);
+
+	unsigned int VAO;
+	unsigned int VBO;
+	unsigned int EBO; // Create a unsigned int to store EBO id.
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glGenBuffers(1, &EBO); // Generate a buffer for EBO.
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO); // Bind it as a GL_ELEMENT_ARRAY_BUFFER which is element buffer object.
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexOrder), indexOrder, GL_STATIC_DRAW); // Store drawing indices in vram.
+
+	glBindVertexArray(0); // Never unbind EBO before VAO!
+
+	glClearColor(0.f, 0.f, 0.f, 1.f);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Define that we will use lines to draw instead of filling. 
+
+	glBindVertexArray(VAO);
+
+	// Querying that how many vertex attributes (vertex shader inputs) are available.
+	int vertexAttribCount;
+	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &vertexAttribCount);
+	std::cout << "Max vertex attribs (input for vertex shader): " << vertexAttribCount << "\n";
+
+	while (!glfwWindowShouldClose(window))
+	{
+		glfwPollEvents();
+		handleInput(window);
+
+		glClear(GL_COLOR_BUFFER_BIT); // Clear
+		
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); // Draw, Instead of glDrawArray(), we are using glDrawELements().
+
+		glfwSwapBuffers(window); // Display
+	}
+
+	glfwTerminate();
+	return 0;
+}
+
+void windowSizeCallback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+}
+
+void handleInput(GLFWwindow* window)
+{
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
